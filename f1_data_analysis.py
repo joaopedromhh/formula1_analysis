@@ -54,7 +54,7 @@ print("\n TABELA DE PILOTOS")
 
 if len(dados['drivers']) > 0:
     print(f"Total Pilotos: {len(dados['drivers'])}")
-    print(f"Nacionalidades: {dados['drivers']['nationality'].nunique()}")
+    print(f"Nacionalidades: {dados['drivers'].nunique()}")
 
 # corridas
 
@@ -106,3 +106,50 @@ if len(dados['pit_stops']) > 0:
     print(f"Maior tempo de pit stop: {dados['pit_stops']['duration'].astype(float).max()} ms")
     print(f"Média de tempo de pit stop: {dados['pit_stops']['duration'].astype(float).mean():.2f} ms")
     print(f"Menor tempo de pit stop: {dados['pit_stops']['duration'].astype(float).min()} ms")
+
+
+# === Análise de insights ===
+
+# Pilotos com mais vitórias
+
+# -- assumindo que a última corrida do ano terá a posição final do corredor
+
+def analise_vitorias():
+    drivers = dados['drivers']
+    driver_standings = dados['driver_standings']
+    races = dados['races']
+
+    # encontrar ultima corrida
+    ultima_corrida = races.groupby('year')['round'].max().reset_index()
+    ultima_corrida = ultima_corrida.merge(
+        races[['year', 'round', 'raceId']],
+        on=['year', 'round'] # análise por ano e corrida
+    )
+
+    # clasficação final
+    classificacao_final = driver_standings.merge(
+        ultima_corrida[['year', 'raceId']], # merge no raceId comum das tabelas
+        on='raceId'
+    )
+
+    vencedores = classificacao_final[classificacao_final['position'] == 1].copy()
+
+    vencedores = vencedores.merge(
+        drivers[['driverId', 'forename', 'surname']],
+        on='driverId' #merge no dirverId comum das tabelas
+    )
+    vencedores['piloto'] = vencedores['forename'] + ' ' + vencedores['surname'] # monta a string do nome
+
+    # contagem de titulos
+
+    titulos = vencedores.groupby(['piloto']).size().reset_index(name='titulos')
+    titulos = titulos.sort_values('titulos', ascending=False)
+
+    print("\nPilotos com mais vitórias:")
+    for i, (_, row) in enumerate(titulos.head(10).iterrows(), 1):
+        print(f" {i}. {row['piloto']:30s}) - {row['titulos']}  títulos")
+
+    return titulos
+
+titulos = analise_vitorias()
+
