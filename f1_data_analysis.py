@@ -153,3 +153,53 @@ def analise_vitorias():
 
 titulos = analise_vitorias()
 
+
+# relação piloto por circuito
+
+def analise_pilotos_circuitos():
+    drivers = dados['drivers']
+    results = dados['results']
+    races = dados['races']
+    circuits = dados['circuits']
+
+    # vitoria quando position = 1
+    vitorias = results[results['position'] == 1].copy()
+
+    vitorias = vitorias.merge(races[['raceId', 'circuitId', 'name']], on='raceId')
+    vitorias = vitorias.merge(drivers[['driverId', 'forename', 'surname']], on='driverId')
+    vitorias = vitorias.merge(circuits[['circuitId', 'name']], on='circuitId')
+
+    #dentro de vitorias, definir nome
+    vitorias['piloto'] = vitorias['forename'] + ' ' + vitorias['surname']
+        
+# relação piloto por circuito
+
+def analise_pilotos_circuitos(circuito_nome=None, top_n=5):
+    drivers = dados['drivers']
+    results = dados['results']
+    races = dados['races']
+    circuits = dados['circuits']
+
+    # vitoria quando position = 1
+    vitorias = results[results['position'] == 1].copy()
+
+    vitorias = vitorias.merge(races[['raceId', 'circuitId', 'name']], on='raceId')
+    vitorias = vitorias.merge(drivers[['driverId', 'forename', 'surname']], on='driverId')
+    vitorias = vitorias.merge(circuits[['circuitId', 'name']], on='circuitId')
+
+    #dentro de vitorias, definir nome
+    vitorias['piloto'] = vitorias['forename'] + ' ' + vitorias['surname']
+
+    if circuito_nome:
+        vitorias_circuito = vitorias[vitorias['name_y'].str.contatins(circuito_nome, case=False)]
+        top_pilotos = vitorias_circuito.groupby('piloto').size().reset_index(name='vitorias')
+        top_pilotos = top_pilotos.sort_values('vitorias', ascending=False).head(top_n)
+
+        print(f"\nPilotos com mais vitórias no circuito {circuito_nome}:")
+
+        for i, (_, row) in enumerate(top_pilotos.iterrows(), 1):
+            print(f" {i}. {row['piloto']} - {row['vitorias']} vitórias")
+        return top_pilotos
+    else:
+        print("finalizar")
+    
