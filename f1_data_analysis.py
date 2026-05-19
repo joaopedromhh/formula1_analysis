@@ -152,26 +152,7 @@ def analise_vitorias():
     return titulos
 
 titulos = analise_vitorias()
-
-
-# relação piloto por circuito
-
-def analise_pilotos_circuitos():
-    drivers = dados['drivers']
-    results = dados['results']
-    races = dados['races']
-    circuits = dados['circuits']
-
-    # vitoria quando position = 1
-    vitorias = results[results['position'] == 1].copy()
-
-    vitorias = vitorias.merge(races[['raceId', 'circuitId', 'name']], on='raceId')
-    vitorias = vitorias.merge(drivers[['driverId', 'forename', 'surname']], on='driverId')
-    vitorias = vitorias.merge(circuits[['circuitId', 'name']], on='circuitId')
-
-    #dentro de vitorias, definir nome
-    vitorias['piloto'] = vitorias['forename'] + ' ' + vitorias['surname']
-        
+     
 # relação piloto por circuito
 
 def analise_pilotos_circuitos(circuito_nome=None, top_n=5):
@@ -180,26 +161,78 @@ def analise_pilotos_circuitos(circuito_nome=None, top_n=5):
     races = dados['races']
     circuits = dados['circuits']
 
-    # vitoria quando position = 1
-    vitorias = results[results['position'] == 1].copy()
+    #copia de results
 
+    results_clean = results.copy()
+
+    results_clean['position'] = results_clean['position'].astype(str).str.strip()
+
+
+    # vitoria quando position = 1
+    vitorias = results_clean[results_clean['position'] == '1'].copy()
+
+
+    # merge corridas
     vitorias = vitorias.merge(races[['raceId', 'circuitId', 'name']], on='raceId')
+    
+    # renomeando coluna para evitar confusão no merge com circuitos
+    vitorias = vitorias.rename(columns={'name': 'race_name'})
+
+    # merge drivers
     vitorias = vitorias.merge(drivers[['driverId', 'forename', 'surname']], on='driverId')
+
+    # merge circuitos
     vitorias = vitorias.merge(circuits[['circuitId', 'name']], on='circuitId')
+
+    # renomeando coluna para evitar problema no merge com corridas
+    vitorias = vitorias.rename(columns= {'name': 'circuit_name'})
 
     #dentro de vitorias, definir nome
     vitorias['piloto'] = vitorias['forename'] + ' ' + vitorias['surname']
 
-    if circuito_nome:
-        vitorias_circuito = vitorias[vitorias['name_y'].str.contatins(circuito_nome, case=False)]
-        top_pilotos = vitorias_circuito.groupby('piloto').size().reset_index(name='vitorias')
-        top_pilotos = top_pilotos.sort_values('vitorias', ascending=False).head(top_n)
+    #debug 
+    print(f"total vitorias: {len(vitorias)}")
+    print(f"circuitos únicos: {vitorias['circuit_name'].nunique()}")
+    print(f"pilotos únicos: {vitorias['piloto'].nunique()}")
 
-        print(f"\nPilotos com mais vitórias no circuito {circuito_nome}:")
+    if circuito_nome:
+
+        # filtro por circuito
+
+        mascara = vitorias['circuit_name'].str.contains(circuito_nome, case=False, na=False)
+        vitorias_circuito = vitorias[mascara].copy()
+
+        top_pilotos = vitorias_circuito.groupby('piloto').size().reset_index(name='vitorias')
+
+        top_pilotos = top_pilotos.nlargest(top_n, 'vitorias')
+
+        top_pilotos = top_pilotos.merge(
+            vitorias_circuito[['piloto', 'nationationality']].drop_duplicates(),
+            on='piloto',
+        )
+
+        print(f"\nPilotos com mais vitórias no circuito {circuito_nome.upper()}:")
 
         for i, (_, row) in enumerate(top_pilotos.iterrows(), 1):
             print(f" {i}. {row['piloto']} - {row['vitorias']} vitórias")
         return top_pilotos
-    else:
-        print("finalizar")
     
+    else:
+        diversidade = vitorias.groupby('circuit_name').agg({
+            'piloto': 'nunique',
+            'driverId': 'count'
+        }).reset_index()
+        diversidade.columns = ['circuito', 'n_pilotos_diferentes', 'total_vitorias']
+        diversidade = diversidade.nlargest(top_n, 'n_pilotos_diferentes')
+        
+        print(f"CIRCUITOS COM MAIS PILOTOS VENCEDORES DIFERENTES")
+        
+        for _, row in diversidade.iterrows():
+            print(f"  {row['circuito']}:")
+            print(f"     - {row['n_pilotos_diferentes']} pilotos diferentes")
+            print(f"     - {row['total_vitorias']} vitórias no total")
+        
+        return diversidade
+
+# exemplos
+analise_pilotos_circuitos(None, top_n=10)
