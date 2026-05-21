@@ -236,3 +236,32 @@ def analise_pilotos_circuitos(circuito_nome=None, top_n=5):
 
 # exemplos
 analise_pilotos_circuitos(None, top_n=10)
+
+
+def analise_melhores_voltas(top_n=10):
+    results = dados['results']
+    drivers = dados['drivers']
+
+    # olhar para coluna do fastest lap
+
+    melhor_volta = results[results['fastestLap'].notna()].copy()
+
+    melhor_volta = melhor_volta.merge(
+        drivers[['driverId', 'forename', 'surname']],
+        on='driverId'
+    )
+
+    melhor_volta['piloto'] = melhor_volta['forename'] + ' ' + melhor_volta['surname']
+
+    # contar correspondencias
+    contagem = melhor_volta.groupby('piloto').size().reset_index(name='melhor_volta')
+    contagem = contagem.nlargest(top_n, 'melhor_volta')
+
+    print(f"Top {top_n} pilotos com mais voltas rapidas: ")
+
+    for i, (_, row) in enumerate(contagem.iterrows(), 1):
+        print(f"  {i}. {row['piloto']} - {row['melhor_volta']} volta(s) rápida(s)")
+    
+    return contagem
+
+melhor_volta = analise_melhores_voltas(10)
