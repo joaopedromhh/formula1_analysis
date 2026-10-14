@@ -1,0 +1,2 @@
+- Explorar um dataset de Formula 1
+- Modelo simples de ETL com Python
